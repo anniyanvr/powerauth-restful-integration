@@ -1,0 +1,160 @@
+/*
+ * PowerAuth integration libraries for RESTful API applications, examples and
+ * related software components
+ *
+ * Copyright (C) 2018 Wultra s.r.o.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package com.wultra.security.powerauth.rest.api.spring.service.v3;
+
+import com.wultra.security.powerauth.client.v3.PowerAuthClient;
+import com.wultra.security.powerauth.client.model.enumeration.v3.SignatureType;
+import com.wultra.security.powerauth.client.model.request.v3.CreateTokenRequest;
+import com.wultra.security.powerauth.client.model.request.RemoveTokenRequest;
+import com.wultra.security.powerauth.client.model.response.v3.CreateTokenResponse;
+import com.wultra.security.powerauth.crypto.lib.encryptor.model.v3.EciesEncryptedRequest;
+import com.wultra.security.powerauth.crypto.lib.encryptor.model.v3.EciesEncryptedResponse;
+import com.wultra.security.powerauth.crypto.lib.enums.PowerAuthCodeType;
+import com.wultra.security.powerauth.http.PowerAuthAuthorizationHttpHeader;
+import com.wultra.security.powerauth.rest.api.model.request.TokenRemoveRequest;
+import com.wultra.security.powerauth.rest.api.model.response.TokenRemoveResponse;
+import com.wultra.security.powerauth.rest.api.spring.authentication.PowerAuthApiAuthentication;
+import com.wultra.security.powerauth.rest.api.spring.converter.SignatureTypeConverter;
+import com.wultra.security.powerauth.rest.api.spring.exception.PowerAuthAuthenticationException;
+import com.wultra.security.powerauth.rest.api.spring.exception.authentication.PowerAuthCodeTypeInvalidException;
+import com.wultra.security.powerauth.rest.api.spring.exception.authentication.PowerAuthTokenErrorException;
+import com.wultra.security.powerauth.rest.api.spring.service.HttpCustomizationService;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+/**
+ * Service implementing token functionality.
+ *
+ * <p><b>PowerAuth protocol versions:</b>
+ * <ul>
+ *     <li>3.0</li>
+ *     <li>3.1</li>
+ *     <li>3.2</li>
+ *     <li>3.3</li>
+ * </ul>
+ *
+ * @author Roman Strobl, roman.strobl@wultra.com
+ */
+@Service("tokenServiceV3")
+@AllArgsConstructor
+@Slf4j
+public class TokenService {
+
+    private final PowerAuthClient powerAuthClient;
+    private final HttpCustomizationService httpCustomizationService;
+
+    /**
+     * Create token.
+     *
+     * @param request        ECIES encrypted create token request.
+     * @param authentication PowerAuth API authentication object.
+     * @return ECIES encrypted create token response.
+     * @throws PowerAuthAuthenticationException In case token could not be created.
+     */
+    public EciesEncryptedResponse createToken(EciesEncryptedRequest request,
+                                              PowerAuthApiAuthentication authentication)
+            throws PowerAuthAuthenticationException {
+        try {
+            // Fetch activation ID and signature type
+            final PowerAuthCodeType signatureFactors = authentication.getAuthenticationContext().getAuthenticationCodeType();
+
+            // Prepare a signature type converter
+            final SignatureTypeConverter converter = new SignatureTypeConverter();
+            final SignatureType signatureType = converter.convertFrom(signatureFactors);
+            if (signatureType == null) {
+                logger.warn("Invalid signature type: {}", signatureFactors);
+                throw new PowerAuthCodeTypeInvalidException();
+            }
+
+            // Get ECIES headers
+            final String activationId = authentication.getActivationContext().getActivationId();
+            final PowerAuthAuthorizationHttpHeader httpHeader = (PowerAuthAuthorizationHttpHeader) authentication.getHttpHeader();
+            final String applicationKey = httpHeader.getApplicationKey();
+
+            // Create a token
+            final CreateTokenRequest tokenRequest = new CreateTokenRequest();
+            tokenRequest.setActivationId(activationId);
+            tokenRequest.setApplicationKey(applicationKey);
+            tokenRequest.setTemporaryKeyId(request.getTemporaryKeyId());
+            tokenRequest.setEphemeralPublicKey(request.getEphemeralPublicKey());
+            tokenRequest.setEncryptedData(request.getEncryptedData());
+            tokenRequest.setMac(request.getMac());
+            tokenRequest.setNonce(request.getNonce());
+            tokenRequest.setSignatureType(signatureType);
+            tokenRequest.setProtocolVersion(httpHeader.getVersion());
+            tokenRequest.setTimestamp(request.getTimestamp());
+            final CreateTokenResponse token = powerAuthClient.createToken(
+                    tokenRequest,
+                    httpCustomizationService.getQueryParams(),
+                    httpCustomizationService.getHttpHeaders()
+            );
+
+            // Prepare a response
+            final EciesEncryptedResponse response = new EciesEncryptedResponse();
+            response.setMac(token.getMac());
+            response.setEncryptedData(token.getEncryptedData());
+            response.setNonce(token.getNonce());
+            response.setTimestamp(token.getTimestamp());
+            return response;
+        } catch (Exception ex) {
+            logger.warn("Creating PowerAuth token failed, error: {}", ex.getMessage());
+            logger.debug(ex.getMessage(), ex);
+            throw new PowerAuthTokenErrorException();
+        }
+    }
+
+    /**
+     * Remove token.
+     *
+     * @param request        Remove token request.
+     * @param authentication PowerAuth API authentication object.
+     * @return Remove token response.
+     * @throws PowerAuthAuthenticationException In case authentication fails.
+     */
+    public TokenRemoveResponse removeToken(TokenRemoveRequest request, PowerAuthApiAuthentication authentication) throws PowerAuthAuthenticationException {
+        try {
+            // Fetch activation ID
+            final String activationId = authentication.getActivationContext().getActivationId();
+
+            // Fetch token ID from the request
+            final String tokenId = request.getTokenId();
+
+            // Remove a token, ignore response, since the endpoint should quietly return
+            final RemoveTokenRequest removeRequest = new RemoveTokenRequest();
+            removeRequest.setActivationId(activationId);
+            removeRequest.setTokenId(tokenId);
+            powerAuthClient.removeToken(
+                    removeRequest,
+                    httpCustomizationService.getQueryParams(),
+                    httpCustomizationService.getHttpHeaders()
+            );
+
+            // Prepare a response
+            final TokenRemoveResponse response = new TokenRemoveResponse();
+            response.setTokenId(tokenId);
+            return response;
+        } catch (Exception ex) {
+            logger.warn("Removing PowerAuth token failed, error: {}", ex.getMessage());
+            logger.debug(ex.getMessage(), ex);
+            throw new PowerAuthTokenErrorException();
+        }
+    }
+}

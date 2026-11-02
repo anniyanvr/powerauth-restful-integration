@@ -24,35 +24,58 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>powerauth-restful-security-spring</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
     <name>powerauth-restful-security-spring</name>
     <description>PowerAuth RESTful API Security Additions for Spring</description>
 
     <parent>
-        <groupId>io.getlime.security</groupId>
+        <groupId>com.wultra.security</groupId>
         <artifactId>powerauth-restful-integration-parent</artifactId>
-        <version>1.4.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
+        <version>2.3.0-SNAPSHOT</version>
     </parent>
 
     <dependencies>
 
-        <!-- PowerAuth Dependencies -->
+        <!-- PowerAuth Restful Integration Dependencies -->
         <dependency>
-            <groupId>io.getlime.security</groupId>
+            <groupId>com.wultra.security</groupId>
             <artifactId>powerauth-restful-security-spring-annotation</artifactId>
-            <version>${powerauth-restful-security-spring-annotation.version}</version>
         </dependency>
+
+        <!-- PowerAuth Libraries -->
         <dependency>
-            <groupId>io.getlime.security</groupId>
+            <groupId>com.wultra.security</groupId>
             <artifactId>powerauth-rest-client-spring</artifactId>
-            <version>${powerauth-rest-client-spring.version}</version>
+            <version>${powerauth.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>log4j-to-slf4j</artifactId>
                     <groupId>org.apache.logging.log4j</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!--  Other Dependencies  -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

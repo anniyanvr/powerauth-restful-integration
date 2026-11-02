@@ -6,8 +6,10 @@
 
 - [Introduction](./Introduction.md)
 - [RESTful API (Spring)](./RESTful-API-for-Spring.md)
+- [RESTful API Methods](./RESTful-API-Methods.md)
+- [Error Codes](./Error-Codes.md)
 
 **Implementation Tutorials**
 
-- [Authentication in Mobile Banking Apps (SCA)](https://developers.wultra.com/products/mobile-security-suite/develop/tutorials/Authentication-in-Mobile-Apps)
-- [Verifying PowerAuth Signatures On The Server](https://developers.wultra.com/products/mobile-security-suite/develop/tutorials/Manual-Signature-Verification)
+- [Authentication in Mobile Banking Apps (SCA)](https://developers.wultra.com/tutorials/posts/Mobile-First-Authentication/)
+- [Verifying PowerAuth Authentication Codes On The Server](https://developers.wultra.com/tutorials/posts/Manual-Signature-Verification/)
